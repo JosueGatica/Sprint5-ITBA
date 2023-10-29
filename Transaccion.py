@@ -1,14 +1,16 @@
-class Transacciones():
+class Transaccion():
     
     #Constructor
     def __init__(self,tipo,cuentaNumero,permitidoActualParaTransaccion,
-                    monto, fecha,numero):
-        self.estado = "Pendiente"
+                    monto, fecha):
+        self.estado = "PENDIENTE"
         self.tipo = tipo
         self.cuentaNumero = cuentaNumero
         self.permitidoActualParaTransaccion = permitidoActualParaTransaccion
         self.monto = monto 
         self.fecha = fecha
-        self.numero = numero
 
-    #FALTA LOGICA DE TRANSACCIONES PARA CONTROL DE ESTADOS
+    def setEstado(self,estado):
+        self.estado = estado
+
+    #FALTA LOGICA DE Transaccion PARA CONTROL DE ESTADOS

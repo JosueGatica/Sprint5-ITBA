@@ -1,7 +1,8 @@
 from Tarjeta import Tarjeta
-from Transacciones import Transacciones
-from Operaciones import Operaciones
+from Transaccion import Transaccion
+from Chequera import Chequera
 import json
+from datetime import datetime
 
 #Clase cliente
 class Cliente():
@@ -20,8 +21,9 @@ class Cliente():
         self.dni = dni
         self.tipo = tipo
         self.cuentas = []  #Tiene que ser un enumerado CORREGIR
-        self.transacciones = []
+        self.Transaccion = []
         self.tarjetaS = []
+        self.chequera = []
         
         # ------------------- RESTRICCIONES --------------------
 
@@ -50,6 +52,12 @@ class Cliente():
         self.comision_transferencia_saliente = 0
         self.comision_transferencia_entrante = 0
 
+        #Permitidos retiro caja
+        self.permitido_actual = 9000
+
+        #Chequera
+        self.cant_chequera = 0
+
     #Generar reporte
     def generar_reporte(self):
         reporte = {
@@ -58,24 +66,32 @@ class Cliente():
             "apellido": self.apellido,
             "dni": self.dni,
             "tipo": self.tipo,
-            "transacciones": []
+            "Transaccion": []
         }
-        for transaccion in self.transacciones:
-            reporte["transacciones"].append({
-                "estado": "transaccion.estado",
+        numeroTransaccion = 0
+        for transaccion in self.Transaccion:
+            numeroTransaccion += 1
+            transaccion_data  = {
+                "estado": transaccion.estado,
                 "tipo": transaccion.tipo,
                 "cuentaNumero": transaccion.cuentaNumero,
                 "permitidoActualParaTransaccion": transaccion.permitidoActualParaTransaccion,
                 "monto": transaccion.monto,
                 "fecha": transaccion.fecha,
-                "numero": transaccion.numero
-            })
+                "numero": numeroTransaccion
+            }
 
-        return json.dumps(reporte, indent=2) #Transformo la salida en formato JSON
+            # Filtrar los valores que no son None
+            transaccion_data = {k: v for k, v in transaccion_data.items() if v is not None}
+
+            #Guardo la transaccion en el reporte
+            reporte["Transaccion"].append(transaccion_data)
+
+        return json.dumps(reporte, indent=3) #Transformo la salida en formato JSON
 
     #Metodo que agrega una transaccion
     def agregarTransaccion(self,transaccion):
-        self.transacciones.append(transaccion)
+        self.Transaccion.append(transaccion)
 
     #Metodo que me dice la cantidad de tarjetas de credito/debito que tiene el cliente
     def cantTarjetas(self,tipoTarjeta):
@@ -85,33 +101,96 @@ class Cliente():
                 cantidad += 1
         return cantidad
 
-
     #Metodo que agrega una tarjeta a el cliente
     def agregarTarjeta(self,tipoTarjeta,empresaTarjeta):
         #Creo la tarjeta
-        tarjetaAgregar = Tarjeta(self.nombre + " " + self.apellido,tipoTarjeta,empresaTarjeta)
+        tarjetaAgregar = Tarjeta(self.getTitular(),tipoTarjeta,empresaTarjeta)
         #Compruebo las cantidad 
         cantDebito = self.cantTarjetas("Debito")
         cantCredito = self.cantTarjetas("Credito")
+
+        #Creo la transaccion
+        agregarTarjetaTransaccion = Transaccion("ALTA_TARJETA_" + tipoTarjeta.upper() + "_" + empresaTarjeta.upper(),None,None,None,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
         #Me fijo si no paso los limites estipulados
-        if not (cantDebito < self.cant_tarjetas_debito or cantCredito < self.cant_tarjetas_credito):
+        if not (cantDebito < self.cant_tarjetas_debito and cantCredito < self.cant_tarjetas_credito):
+            #Si esta fuera de los rangos permitidos muestro en pantalla y se rechaza la transaccion
             print('No se puede agregar la tarjeta de credito/debito, ya es el limite')
+            agregarTarjetaTransaccion.setEstado("INVALIDO")
         else:
-            self.tarjetaS.append(tarjetaAgregar) #Agrego la tarjeta
+            #Caso contrario, el estado paso a aprobado y agrego la tarjeta
+            agregarTarjetaTransaccion.setEstado("ACEPTADA")
+            self.tarjetaS.append(tarjetaAgregar)
+
+        #Cargo la transaccion
+        self.agregarTransaccion(agregarTarjetaTransaccion)        
 
     #Metodo que vincula una cuenta a el cliente
+    #MODIFICAR
     def agregarCuenta(self,cuenta):
         self.cuentas.append(cuenta)
 
+    #Metodo para retirar efectivo, por caja o cajero
+    def retiroEfectivo(self,tipoRetiro,cuentaNumero,monto):
+        #Creo la transaccion
+        retirarEfectivo = Transaccion("RETIRO_EFECTIVO_" + tipoRetiro.upper(),cuentaNumero,self.permitido_actual,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+        #Me fijo que el saldo a retirar no pase al permitido
+        if (monto > self.permitido_actual):
+            #Rechazo transaccion
+            print('El monto es mayor al permitido actual')
+            retirarEfectivo.setEstado("RECHAZADO")
+        else:
+            #Caso contrario, el estado pasa a aprobado
+            retirarEfectivo.setEstado("ACEPTADA")
+
+        #Cargo la transaccion
+        self.agregarTransaccion(retirarEfectivo)  
+
+    #Metodo para realizar una compra por tarjeta, en cuotas o total
+    def compraTarjeta(self,tipoCompra,tipoTarjeta,cuentaNumero, monto):
+        #Creo la transaccion
+        comprar = Transaccion("COMPRA_" + tipoCompra.upper() + "_TARJETA_" + tipoTarjeta.upper(),cuentaNumero,self.permitido_actual,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+        #Me fijo que el saldo a comprar no pase al limite de la cuenta
+        if (tipoCompra == "EN_CUOTAS" and monto > self.limite_cuotas) or (monto > self.limite_un_pago):
+                #Rechazo transaccion
+                print('El monto es mayor al permitido actual')
+                comprar.setEstado("RECHAZADO")
+        else:
+            #Caso contrario, el estado pasa a aprobado
+            comprar.setEstado("ACEPTADA")
+
+        #Cargo la transaccion
+        self.agregarTransaccion(comprar)  
+
+    #Metodo para crear una chequera
+    def agregarChequera(self):
+        #Creo la transaccion
+        agregarChequera = Transaccion("ALTA_CHEQUERA",None,None,None,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+        #Chequeo que no supere la cantidad de chequeras maxima
+        if not (len(self.chequera) < self.cant_chequera):
+            print('Ya se tiene el maximo de chequeras')
+            agregarChequera.setEstado("RECHAZADA")
+        else:
+            #Creo la chequera y la agrego
+            agregarChequera.setEstado("APROBADA")
+            chequeraNueva = Chequera(self.getTitular())
+            self.chequera.append(chequeraNueva)
+
+        #Cargo la transaccion
+        self.agregarTransaccion(agregarChequera) 
+
     # ------------ GETTERS -----------------
 
-    #Todas las transacciones hechas por el cliente
-    def getTransacciones(self):
-        return self.transacciones
+    #Todas las Transaccion hechas por el cliente
+    def getTransaccion(self):
+        return self.Transaccion
     
     #Cantidad de transsaciones hechas por el cliente
     def getCantTrasacciones(self):
-        return len(self.transacciones)
+        return len(self.Transaccion)
     
     #Get con todas las tarjetas
     def getTarjetas(self):
@@ -120,7 +199,13 @@ class Cliente():
             text += str(i) + "\n"
         return text
 
-#Clases que heredan de Cliente
+    #Get titular (Combinacion nombre + apellido)
+    def getTitular(self):
+        return self.nombre + " " + self.apellido
+    
+# ---------------------------- SUBCLASES ----------------------------
+#-------------------  Clases que heredan de Cliente -----------------
+
 class Classic(Cliente):
 
     #Constructor
@@ -137,8 +222,6 @@ class Classic(Cliente):
         self.comision_transferencia_entrante = 0,5
         self.comision_transferencia_saliente = 0,1
 
-        #------------- METODOS ----------------
-
 class Gold(Cliente):
 
     def __init__(self, nombre, apellido, dni):
@@ -154,6 +237,7 @@ class Gold(Cliente):
         self.limite_diario = 20000
         self.comision_transferencia_entrante = 0,1
         self.comision_transferencia_saliente = 0,5
+        self.cant_chequera = 1
 
 class Black(Cliente):
 
@@ -168,6 +252,8 @@ class Black(Cliente):
         self.limite_un_pago = 500000
         self.limite_cuotas = 600000
         self.limite_diario = 100000
+        self.cant_chequera = 2
+
 
 
 # Funciones solicitadas
@@ -192,19 +278,34 @@ def calcular_monto_plazo_fijo(monto_plazo_fijo, interes):
 
 #Pruebas
 
+nicolasGaston = Black('Nicolas','Gaston',29494777)
 paco = Classic('Paco','Alcor',12345678)
 valen = Gold('Valentino','Cambria',12345678)
-seba = Gold('Sebastian','Nor',8754321)
 
-print(paco)
-print(valen)
-print(seba)
+#print(paco)
+#print(valen)
+#print(seba)
 
-paco.agregarTransaccion(Transacciones(Operaciones.RETIRO_EFECTIVO_CAJERO_AUTOMATICO.value,190,9000,1000,"10/10/2022 16:00:55",1))
+#nicolasGaston.agregarTransaccion(Transaccion("RETIRO_EFECTIVO_CAJERO_AUTOMATICO",190,9000,1000,"10/10/2022 16:00:55"))
+#nicolasGaston.agregarTransaccion(Transaccion("COMPRA_EN_CUOTAS_TARJETA_CREDITO_VISA",None,9000,750000,"10/10/2022 16:14:35"))
 
-print(paco.generar_reporte())
 
 #Test limites de tarjetas
-paco.agregarTarjeta("Debito","VISA")
-paco.agregarTarjeta("Credito","VISA")
-print(paco.getTarjetas())
+#paco.agregarTarjeta("Debito","VISA")
+#paco.agregarTarjeta("Credito","VISA")
+#print(paco.getTarjetas())
+
+#Test retirar efectivo
+nicolasGaston.retiroEfectivo("CAJERO_AUTOMATICO",190,1000)
+nicolasGaston.retiroEfectivo("CAJERO_AUTOMATICO",190,9001)
+
+#Test agregar tarjeta
+nicolasGaston.agregarTarjeta("Debito","VISA")
+
+#Test Compra (en cuotas/1 pago)
+nicolasGaston.compraTarjeta("En_cuotas","Credito",190,750000)
+
+#Test chequera
+nicolasGaston.agregarChequera()
+
+print(nicolasGaston.generar_reporte())

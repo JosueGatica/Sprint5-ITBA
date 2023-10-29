@@ -1,7 +1,8 @@
 from Tarjeta import Tarjeta
-from Transacciones import Transacciones
-from Operaciones import Operaciones
+from Transaccion import Transaccion
+#from Operaciones import Operaciones
 import json
+from datetime import datetime
 
 #Clase cliente
 class Cliente():
@@ -20,7 +21,7 @@ class Cliente():
         self.dni = dni
         self.tipo = tipo
         self.cuentas = []  #Tiene que ser un enumerado CORREGIR
-        self.transacciones = []
+        self.Transaccion = []
         self.tarjetaS = []
         
         # ------------------- RESTRICCIONES --------------------
@@ -58,24 +59,26 @@ class Cliente():
             "apellido": self.apellido,
             "dni": self.dni,
             "tipo": self.tipo,
-            "transacciones": []
+            "Transaccion": []
         }
-        for transaccion in self.transacciones:
-            reporte["transacciones"].append({
-                "estado": "transaccion.estado",
+        numeroTransaccion = 0
+        for transaccion in self.Transaccion:
+            numeroTransaccion += 1
+            reporte["Transaccion"].append({
+                "estado": transaccion.estado,
                 "tipo": transaccion.tipo,
                 "cuentaNumero": transaccion.cuentaNumero,
                 "permitidoActualParaTransaccion": transaccion.permitidoActualParaTransaccion,
                 "monto": transaccion.monto,
                 "fecha": transaccion.fecha,
-                "numero": transaccion.numero
+                "numero": numeroTransaccion
             })
 
-        return json.dumps(reporte, indent=2) #Transformo la salida en formato JSON
+        return json.dumps(reporte, indent=3) #Transformo la salida en formato JSON
 
     #Metodo que agrega una transaccion
     def agregarTransaccion(self,transaccion):
-        self.transacciones.append(transaccion)
+        self.Transaccion.append(transaccion)
 
     #Metodo que me dice la cantidad de tarjetas de credito/debito que tiene el cliente
     def cantTarjetas(self,tipoTarjeta):
@@ -93,11 +96,23 @@ class Cliente():
         #Compruebo las cantidad 
         cantDebito = self.cantTarjetas("Debito")
         cantCredito = self.cantTarjetas("Credito")
+
+        #Creo la transaccion
+        agregarTarjetaTransaccion = Transaccion("ALTA_TARJETA_" + tipoTarjeta.upper() + "_" + empresaTarjeta.upper(),None,None,None,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
         #Me fijo si no paso los limites estipulados
-        if not (cantDebito < self.cant_tarjetas_debito or cantCredito < self.cant_tarjetas_credito):
+        if not (cantDebito < self.cant_tarjetas_debito and cantCredito < self.cant_tarjetas_credito):
+            #Si esta fuera de los rangos permitidos muestro en pantalla y se rechaza la transaccion
             print('No se puede agregar la tarjeta de credito/debito, ya es el limite')
+            agregarTarjetaTransaccion.setEstado("INVALIDO")
         else:
-            self.tarjetaS.append(tarjetaAgregar) #Agrego la tarjeta
+            #Caso contrario, el estado paso a aprobado y agrego la tarjeta
+            agregarTarjetaTransaccion.setEstado("ACEPTADA")
+            self.tarjetaS.append(tarjetaAgregar)
+
+        #Cargo la transaccion
+        self.agregarTransaccion(agregarTarjetaTransaccion)
+           
 
     #Metodo que vincula una cuenta a el cliente
     def agregarCuenta(self,cuenta):
@@ -105,13 +120,13 @@ class Cliente():
 
     # ------------ GETTERS -----------------
 
-    #Todas las transacciones hechas por el cliente
-    def getTransacciones(self):
-        return self.transacciones
+    #Todas las Transaccion hechas por el cliente
+    def getTransaccion(self):
+        return self.Transaccion
     
     #Cantidad de transsaciones hechas por el cliente
     def getCantTrasacciones(self):
-        return len(self.transacciones)
+        return len(self.Transaccion)
     
     #Get con todas las tarjetas
     def getTarjetas(self):
@@ -192,19 +207,21 @@ def calcular_monto_plazo_fijo(monto_plazo_fijo, interes):
 
 #Pruebas
 
+nicolasGaston = Black('Nicolas','Gaston',29494777)
 paco = Classic('Paco','Alcor',12345678)
 valen = Gold('Valentino','Cambria',12345678)
-seba = Gold('Sebastian','Nor',8754321)
 
-print(paco)
-print(valen)
-print(seba)
+#print(paco)
+#print(valen)
+#print(seba)
 
-paco.agregarTransaccion(Transacciones(Operaciones.RETIRO_EFECTIVO_CAJERO_AUTOMATICO.value,190,9000,1000,"10/10/2022 16:00:55",1))
-
-print(paco.generar_reporte())
+nicolasGaston.agregarTransaccion(Transaccion("RETIRO_EFECTIVO_CAJERO_AUTOMATICO",190,9000,1000,"10/10/2022 16:00:55"))
+nicolasGaston.agregarTransaccion(Transaccion("COMPRA_EN_CUOTAS_TARJETA_CREDITO_VISA",None,9000,750000,"10/10/2022 16:14:35"))
+nicolasGaston.agregarTarjeta("Debito","VISA")
 
 #Test limites de tarjetas
 paco.agregarTarjeta("Debito","VISA")
 paco.agregarTarjeta("Credito","VISA")
 print(paco.getTarjetas())
+
+print(nicolasGaston.generar_reporte())

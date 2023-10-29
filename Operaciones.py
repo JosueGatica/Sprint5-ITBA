@@ -1,4 +1,4 @@
-from enum import Enum
+"""from enum import Enum
 
 #Todos los estados posibles que pueden tener las operaciones 
 class Operaciones(Enum):
@@ -36,4 +36,4 @@ class Operaciones(Enum):
     TRANSFERENCIA_ENVIADA_DOLARES = "TRANSFERENCIA_ENVIADA_DOLARES"
 
     TRANSFERENCIA_RECIBIDA_PESOS = "TRANSFERENCIA_RECIBIDA_PESOS"
-    TRANSFERENCIA_RECIBIDA_DOLARES = "TRANSFERENCIA_RECIBIDA_DOLARES"
+    TRANSFERENCIA_RECIBIDA_DOLARES = "TRANSFERENCIA_RECIBIDA_DOLARES"""""

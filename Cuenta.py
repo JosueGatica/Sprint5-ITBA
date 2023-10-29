@@ -1,6 +1,5 @@
 from enum import Enum
 
-
 class Cuenta:
     def __init__(self, tipo_cuenta, tipo_moneda):
         self.tipo_cuenta = tipo_cuenta

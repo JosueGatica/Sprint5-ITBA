@@ -8,7 +8,7 @@ class Tarjeta:
         self.titular = titular
         self.vencimiento = self.generar_fecha_vencimiento()
         self.saldo = 100000
-        self.tipo = tipo
+        self.tipo = tipo #Debito, credito
         self.empresa = empresa
 
     #Metodo que genera de forma aleatoria los 16 digitos de una tarjeta
@@ -24,6 +24,11 @@ class Tarjeta:
         vencimiento = hoy + timedelta(days=random.randint(1, 1825))  # 5 años en días
         return vencimiento.strftime("%m/%y")
     
+    def __str__(self) -> str:
+        return (f'Numero: {self.numero}, Titular: {self.titular}, Saldo: {self.saldo}, Tipo: {self.tipo}, Empresa: {self.empresa}' )
+    
+    # ---------------------- GETTERS -------------------------
+
     #Getter Tarjeta
     def getTarjeta(self):
         numTarjeta = ''
@@ -38,6 +43,13 @@ class Tarjeta:
             numTarjeta = numTarjeta + self.numero[i]
 
         return numTarjeta
+    
+    #Getter tipo de la tarjeta
+    def getTipo(self):
+        return self.tipo
+    
+
+    
 
 """ test tarjeta:
 mi_tarjeta = Tarjeta("Juan Pérez","DEBITO","AGUA")
@@ -45,3 +57,4 @@ mi_tarjeta = Tarjeta("Juan Pérez","DEBITO","AGUA")
 print(f"Número de tarjeta: {mi_tarjeta.getTarjeta()}")
 print(f"Fecha de vencimiento: {mi_tarjeta.vencimiento}")
 print(mi_tarjeta)"""
+

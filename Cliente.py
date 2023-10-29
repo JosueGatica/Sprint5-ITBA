@@ -1,7 +1,9 @@
 from Tarjeta import Tarjeta
 from Transacciones import Transacciones
 from Operaciones import Operaciones
+import json
 
+#Clase cliente
 class Cliente():
     
     #ID univoco para cada cliente, que arranca en 10000
@@ -68,15 +70,34 @@ class Cliente():
                 "fecha": transaccion.fecha,
                 "numero": transaccion.numero
             })
-        return reporte
+
+        return json.dumps(reporte, indent=2) #Transformo la salida en formato JSON
 
     #Metodo que agrega una transaccion
     def agregarTransaccion(self,transaccion):
         self.transacciones.append(transaccion)
 
+    #Metodo que me dice la cantidad de tarjetas de credito/debito que tiene el cliente
+    def cantTarjetas(self,tipoTarjeta):
+        cantidad = 0
+        for tarjetaCliente in self.tarjetaS:
+            if tarjetaCliente.getTipo() == tipoTarjeta:
+                cantidad += 1
+        return cantidad
+
+
     #Metodo que agrega una tarjeta a el cliente
-    def agregarTarjeta(self,tarjeta):
-        self.tarjetaS.append(tarjeta)
+    def agregarTarjeta(self,tipoTarjeta,empresaTarjeta):
+        #Creo la tarjeta
+        tarjetaAgregar = Tarjeta(self.nombre + " " + self.apellido,tipoTarjeta,empresaTarjeta)
+        #Compruebo las cantidad 
+        cantDebito = self.cantTarjetas("Debito")
+        cantCredito = self.cantTarjetas("Credito")
+        #Me fijo si no paso los limites estipulados
+        if not (cantDebito < self.cant_tarjetas_debito or cantCredito < self.cant_tarjetas_credito):
+            print('No se puede agregar la tarjeta de credito/debito, ya es el limite')
+        else:
+            self.tarjetaS.append(tarjetaAgregar) #Agrego la tarjeta
 
     #Metodo que vincula una cuenta a el cliente
     def agregarCuenta(self,cuenta):
@@ -91,6 +112,13 @@ class Cliente():
     #Cantidad de transsaciones hechas por el cliente
     def getCantTrasacciones(self):
         return len(self.transacciones)
+    
+    #Get con todas las tarjetas
+    def getTarjetas(self):
+        text = ''
+        for i in self.tarjetaS:
+            text += str(i) + "\n"
+        return text
 
 #Clases que heredan de Cliente
 class Classic(Cliente):
@@ -108,6 +136,8 @@ class Classic(Cliente):
         self.limite_diario = 10000
         self.comision_transferencia_entrante = 0,5
         self.comision_transferencia_saliente = 0,1
+
+        #------------- METODOS ----------------
 
 class Gold(Cliente):
 
@@ -159,6 +189,7 @@ def calcular_monto_plazo_fijo(monto_plazo_fijo, interes):
     monto_final = monto_plazo_fijo + (monto_plazo_fijo * interes)
     return monto_final
 
+
 #Pruebas
 
 paco = Classic('Paco','Alcor',12345678)
@@ -172,3 +203,8 @@ print(seba)
 paco.agregarTransaccion(Transacciones(Operaciones.RETIRO_EFECTIVO_CAJERO_AUTOMATICO.value,190,9000,1000,"10/10/2022 16:00:55",1))
 
 print(paco.generar_reporte())
+
+#Test limites de tarjetas
+paco.agregarTarjeta("Debito","VISA")
+paco.agregarTarjeta("Credito","VISA")
+print(paco.getTarjetas())

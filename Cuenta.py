@@ -6,9 +6,12 @@ class Cuenta:
         self.tipo_moneda = tipo_moneda
         self.saldo = 0
 
+    def getTipoCuenta(self):
+        return self.tipo_cuenta
+"""
 class tipoCuentas(Enum):
     Caja_ahorro_pesos = "Caja de ahorro en peso"
     Caja_ahorro_dolares = "Caja de ahorro en dólares"
     Cuenta_corriente_pesos = "Cuenta Corriente en pesos"
     Cuenta_corriente_dolares = "Cuenta Corriente en dólares"
-    Inversion = "Cuenta Inversión"
+    Inversion = "Cuenta Inversión"""

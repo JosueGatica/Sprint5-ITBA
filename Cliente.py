@@ -1,10 +1,12 @@
 from Tarjeta import Tarjeta
 from Transaccion import Transaccion
 from Chequera import Chequera
+from Cuenta import Cuenta
 import json
 from datetime import datetime
 
-#Clase cliente
+# --------------------- CLASE CLIENTE ----------------------------
+
 class Cliente():
     
     #ID univoco para cada cliente, que arranca en 10000
@@ -36,7 +38,8 @@ class Cliente():
         self.cant_tarjetas_credito = None
 
         #Cantidad caja de ahorro en pesos/dolares
-        self.cant_caja_ahorro = None
+        self.cant_caja_ahorro = 0
+        self.cant_cuenta_corriente = 0
 
         #Cantidad retiros sin comisiones
         self.cant_retiros_sin_comisiones = "Ilimitado" #Black y Gold
@@ -100,6 +103,14 @@ class Cliente():
             if tarjetaCliente.getTipo() == tipoTarjeta:
                 cantidad += 1
         return cantidad
+    
+    #Metodo que me dice la cantidad de cuentas peso o dolares que tiene el cliente
+    def cantCuentas(self,tipoCuenta):
+        cantidad = 0
+        for cuentaCliente in self.cuentas:
+            if cuentaCliente.getTipoCuenta() == tipoCuenta:
+                cantidad += 1
+        return cantidad
 
     #Metodo que agrega una tarjeta a el cliente
     def agregarTarjeta(self,tipoTarjeta,empresaTarjeta):
@@ -125,10 +136,28 @@ class Cliente():
         #Cargo la transaccion
         self.agregarTransaccion(agregarTarjetaTransaccion)        
 
-    #Metodo que vincula una cuenta a el cliente
-    #MODIFICAR
-    def agregarCuenta(self,cuenta):
-        self.cuentas.append(cuenta)
+    #Metodo que crea una cuenta a el cliente
+    def agregarCuenta(self,tipoCuentaAlta,tipoMoneda):
+        altaCuenta = Transaccion("ALTA_" + tipoCuentaAlta + "_" + tipoMoneda, None, None, None, datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+        #Chequeo que no supere la cantidad de cuentas maximas
+        #Veo si es cuenta corriente o caja de ahorro
+        cantCuentasCorriente = self.cantCuentas("CUENTA_CTE")
+        cantCajaAhorro = self.cantCuentas("CAJA_DE_AHORRO")
+        comparacionCuentaCorriente = (tipoCuentaAlta == "CUENTA_CTE") and (cantCuentasCorriente< self.cant_cuenta_corriente)
+        comparacionCajaAhorro = (tipoCuentaAlta == "CAJA_DE_AHORRO") and (cantCajaAhorro < self.cant_caja_ahorro)
+
+        if  not (comparacionCuentaCorriente or comparacionCajaAhorro):
+                print('No se puede agregar la cuenta')
+                altaCuenta.setEstado("RECHAZADA")
+        else:
+            #Creo que la cuenta y la vinculo
+            altaCuenta.setEstado("APROBADA")
+            cuentaNueva = Cuenta(tipoCuentaAlta,tipoMoneda)
+            self.cuentas.append(cuentaNueva)
+        
+        #Cargo la transaccion
+        self.agregarTransaccion(altaCuenta)
 
     #Metodo para retirar efectivo, por caja o cajero
     def retiroEfectivo(self,tipoRetiro,cuentaNumero,monto):
@@ -181,7 +210,7 @@ class Cliente():
 
         #Cargo la transaccion
         self.agregarTransaccion(agregarChequera) 
-
+    
     # ------------ GETTERS -----------------
 
     #Todas las Transaccion hechas por el cliente
@@ -215,12 +244,13 @@ class Classic(Cliente):
         #------------- RESTRICCIONES -------------------
         self.cant_tarjetas_debito = 1
         self.cant_tarjetas_credito = 0
-        self.cant_caja_ahorro_pesos = 1
-        self.cant_caja_ahorro_dolares = 1
+        self.cant_caja_ahorro = 2
         self.cant_retiros_sin_comisiones = 5
         self.limite_diario = 10000
         self.comision_transferencia_entrante = 0,5
         self.comision_transferencia_saliente = 0,1
+
+        #Metodo para crear solo 1 caja ahorro
 
 class Gold(Cliente):
 
@@ -230,8 +260,8 @@ class Gold(Cliente):
         #------------- RESTRICCIONES -------------------
         self.cant_tarjetas_debito = 1
         self.cant_tarjetas_credito = 5
-        self.cant_caja_ahorro = 2 #pesos y dolares
-        self.cant_cuenta_corriente = 1 #Agregada 
+        self.cant_caja_ahorro = 2
+        self.cant_cuenta_corriente = 1 
         self.limite_un_pago = 150000
         self.limite_cuotas = 100000
         self.limite_diario = 20000
@@ -247,14 +277,12 @@ class Black(Cliente):
             #------------- RESTRICCIONES -------------------
         self.cant_tarjetas_debito = 5
         self.cant_tarjetas_credito = 10
-        self.cant_caja_ahorro = 5 #pesos y dolares
-        self.cant_cuenta_corriente = 3 #Agregada 
+        self.cant_caja_ahorro = 5
+        self.cant_cuenta_corriente = 3
         self.limite_un_pago = 500000
         self.limite_cuotas = 600000
         self.limite_diario = 100000
         self.cant_chequera = 2
-
-
 
 # Funciones solicitadas
 
@@ -308,5 +336,14 @@ nicolasGaston.compraTarjeta("En_cuotas","Credito",190,750000)
 #Test chequera
 #nicolasGaston.agregarChequera()
 
+#Test cuenta
+#nicolasGaston.agregarCuenta("CUENTA_CTE","PESOS")
+paco.agregarCuenta("CUENTA_CTE","PESOS")
+paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
+paco.agregarCuenta("CUENTA_CTE","PESOS")
+paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
+paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
+
 #Generar reporte
-print(nicolasGaston.generar_reporte())
+#print(nicolasGaston.generar_reporte())
+print(paco.generar_reporte())

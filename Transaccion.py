@@ -13,4 +13,7 @@ class Transaccion():
     def setEstado(self,estado):
         self.estado = estado
 
+    def setMonto(self,monto):
+        self.monto = monto
+
     #FALTA LOGICA DE Transaccion PARA CONTROL DE ESTADOS

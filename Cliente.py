@@ -139,7 +139,7 @@ class Cliente():
         if (monto > self.permitido_actual):
             #Rechazo transaccion
             print('El monto es mayor al permitido actual')
-            retirarEfectivo.setEstado("RECHAZADO")
+            retirarEfectivo.setEstado("RECHAZADA")
         else:
             #Caso contrario, el estado pasa a aprobado
             retirarEfectivo.setEstado("ACEPTADA")
@@ -156,7 +156,7 @@ class Cliente():
         if (tipoCompra == "EN_CUOTAS" and monto > self.limite_cuotas) or (monto > self.limite_un_pago):
                 #Rechazo transaccion
                 print('El monto es mayor al permitido actual')
-                comprar.setEstado("RECHAZADO")
+                comprar.setEstado("RECHAZADA")
         else:
             #Caso contrario, el estado pasa a aprobado
             comprar.setEstado("ACEPTADA")
@@ -297,15 +297,16 @@ valen = Gold('Valentino','Cambria',12345678)
 
 #Test retirar efectivo
 nicolasGaston.retiroEfectivo("CAJERO_AUTOMATICO",190,1000)
-nicolasGaston.retiroEfectivo("CAJERO_AUTOMATICO",190,9001)
+#nicolasGaston.retiroEfectivo("CAJERO_AUTOMATICO",190,9001)
 
 #Test agregar tarjeta
-nicolasGaston.agregarTarjeta("Debito","VISA")
+#nicolasGaston.agregarTarjeta("Debito","VISA")
 
 #Test Compra (en cuotas/1 pago)
 nicolasGaston.compraTarjeta("En_cuotas","Credito",190,750000)
 
 #Test chequera
-nicolasGaston.agregarChequera()
+#nicolasGaston.agregarChequera()
 
+#Generar reporte
 print(nicolasGaston.generar_reporte())

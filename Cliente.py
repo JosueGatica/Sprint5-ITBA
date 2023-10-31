@@ -143,11 +143,13 @@ class Cliente():
         #Chequeo que no supere la cantidad de cuentas maximas
         #Veo si es cuenta corriente o caja de ahorro
         cantCuentasCorriente = self.cantCuentas("CUENTA_CTE")
-        cantCajaAhorro = self.cantCuentas("CAJA_DE_AHORRO")
+        cantCajaAhorro = self.cantCuentas("CAJA_DE_AHORRO") 
         comparacionCuentaCorriente = (tipoCuentaAlta == "CUENTA_CTE") and (cantCuentasCorriente< self.cant_cuenta_corriente)
         comparacionCajaAhorro = (tipoCuentaAlta == "CAJA_DE_AHORRO") and (cantCajaAhorro < self.cant_caja_ahorro)
+        comparacionInversion = (tipoCuentaAlta == "INVERSION" and self.tipo != "CLASSIC")
 
-        if  not (comparacionCuentaCorriente or comparacionCajaAhorro):
+
+        if  not (comparacionCuentaCorriente or comparacionCajaAhorro or comparacionInversion):
                 print('No se puede agregar la cuenta')
                 altaCuenta.setEstado("RECHAZADA")
         else:
@@ -158,6 +160,7 @@ class Cliente():
         
         #Cargo la transaccion
         self.agregarTransaccion(altaCuenta)
+ 
 
     #Metodo para retirar efectivo, por caja o cajero
     def retiroEfectivo(self,tipoRetiro,cuentaNumero,monto):
@@ -211,6 +214,88 @@ class Cliente():
         #Cargo la transaccion
         self.agregarTransaccion(agregarChequera) 
     
+
+    def compra_dolar(self, tipoMoneda, monto, cuenta):
+        dolar = 970
+        cuentaPesos = self.cuentas[self.cuenta_dolar(tipoMoneda, cuenta)]
+        cuentaDolar = self.cuentas[self.cuenta_dolar("DOLAR", cuenta)]
+        if tipoMoneda == "DOLAR":
+            print("DEBE USAR UNA CUENTA EN PESOS")
+        else:
+            cantidadPesos = dolar * monto
+            cuentaPesos.retirar_plata(cantidadPesos)
+            cuentaDolar.ingresar_plata(monto)
+            print("BIEN AHI TENES DOLARES!!")
+            compraDolar = Transaccion("COMPRA_DOLAR",None,None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+            self.Transaccion.append(compraDolar)
+    
+    def venta_dolar(self, tipoMoneda, monto, cuenta):
+        dolar = 970
+        cuentaPesos = self.cuentas[self.cuenta_dolar(tipoMoneda, cuenta)]
+        cuentaDolar = self.cuentas[self.cuenta_dolar("DOLAR", cuenta)]
+        if tipoMoneda == "PESOS":
+            print("DEBE USAR UNA CUENTA EN DOLARES")
+        else:
+            cantidadPesos = monto * dolar
+            cuentaDolar.retirar_plata(monto)
+            cuentaPesos.ingresar_plata(cantidadPesos)
+            print("MAL AHI TENES PESOS!!")
+            ventaDolar = Transaccion("VENTA_DOLAR",None,None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+            self.Transaccion.append(ventaDolar)
+
+    def cuenta_dolar(self, moneda, cuenta):
+        encontrado = False
+        i = 0
+        while not(encontrado) and i<len(self.cuentas):
+            cuentaTipo =  self.cuentas[i].getTipoCuenta()
+            cuentaMoneda = self.cuentas[i].getTipoMoneda()
+            if cuentaTipo == cuenta and cuentaMoneda == moneda:
+                encontrado = True
+            else:
+                i += 1
+        return i
+    
+    def transferencia_enviada(self, cuentaDestino, cuentaOrigen, monto, tipoMoneda):
+        cuentaTransferencia = self.cuentas[self.cuenta_dolar(tipoMoneda, cuentaOrigen)]
+        saldoTransferComision = monto * self.comision_transferencia_saliente + monto
+        if cuentaTransferencia.get_saldo() >= saldoTransferComision:
+            cuentaTransferencia.retirar_plata(saldoTransferComision)
+            cuentaDestino.ingresar_plata(saldoTransferComision)
+            transferenciaEnviada = Transaccion("TRANSFERENCIA_ENVIADA_" + tipoMoneda ,self.cuenta_dolar(tipoMoneda, cuentaOrigen),None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+            self.Transaccion.append(transferenciaEnviada)
+            print("TRANSFERENCIA EXITOSA")
+        else:
+            print("NO HAY FONDOS SUFICIENTES")
+        
+    def transferencia_recibida(self, cuentaOrigen, monto, tipoMoneda):
+        cuentaTransferenciaRecibida = self.cuentas[self.cuenta_dolar(tipoMoneda, cuentaOrigen)]
+        saldoTransferComision = monto * self.comision_transferencia_entrante + monto
+        cuentaTransferenciaRecibida.ingresar_plata(saldoTransferComision)
+        transferenciaRecibida = Transaccion("TRANSFERENCIA_RECIBIDA_" + tipoMoneda ,self.cuenta_dolar(tipoMoneda, cuentaOrigen),None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+        self.Transaccion.append(transferenciaRecibida)
+        print("TRANSFERENCIA EXITOSA")
+
+
+# Funciones solicitadas
+
+    def calcular_monto_total(precio_dolar, monto):
+        impuesto_pais = 0.25 #Actual argentina
+        ganancias = 0.35
+        monto_sin_impuestos = precio_dolar * monto
+        impuesto_total = monto_sin_impuestos * (impuesto_pais + ganancias)
+        monto_total = monto_sin_impuestos + impuesto_total
+        return monto_total
+
+    def descontar_comision(monto, comision_porcentaje):
+        comision = (comision_porcentaje / 100) * monto
+        monto_descontado = monto - comision
+        return monto_descontado
+
+    def calcular_monto_plazo_fijo(monto_plazo_fijo, interes):
+        monto_final = monto_plazo_fijo + (monto_plazo_fijo * interes)
+        return monto_final
+
+
     # ------------ GETTERS -----------------
 
     #Todas las Transaccion hechas por el cliente
@@ -232,6 +317,7 @@ class Cliente():
     def getTitular(self):
         return self.nombre + " " + self.apellido
     
+
 # ---------------------------- SUBCLASES ----------------------------
 #-------------------  Clases que heredan de Cliente -----------------
 
@@ -284,24 +370,6 @@ class Black(Cliente):
         self.limite_diario = 100000
         self.cant_chequera = 2
 
-# Funciones solicitadas
-
-def calcular_monto_total(precio_dolar, monto):
-    impuesto_pais = 0.25 #Actual argentina
-    ganancias = 0.35
-    monto_sin_impuestos = precio_dolar * monto
-    impuesto_total = monto_sin_impuestos * (impuesto_pais + ganancias)
-    monto_total = monto_sin_impuestos + impuesto_total
-    return monto_total
-
-def descontar_comision(monto, comision_porcentaje):
-    comision = (comision_porcentaje / 100) * monto
-    monto_descontado = monto - comision
-    return monto_descontado
-
-def calcular_monto_plazo_fijo(monto_plazo_fijo, interes):
-    monto_final = monto_plazo_fijo + (monto_plazo_fijo * interes)
-    return monto_final
 
 
 #Pruebas

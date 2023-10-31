@@ -214,71 +214,109 @@ class Cliente():
         #Cargo la transaccion
         self.agregarTransaccion(agregarChequera) 
     
-
+    #Metodo para realizar la compra de dolares
     def compra_dolar(self, tipoMoneda, monto, cuenta):
         dolar = 970
+        #Genero la transaccion
+        compraDolar = Transaccion("COMPRA_DOLAR",None,None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+        compraDolar.setEstado("RECHAZADA")
+        #Obtenemos la cuenta que vamos a hacer la transferencia de dolar a pesos
         cuentaPesos = self.cuentas[self.cuenta_dolar(tipoMoneda, cuenta)]
-        cuentaDolar = self.cuentas[self.cuenta_dolar("DOLAR", cuenta)]
+        cuentaDolar = self.cuentas[self.cuenta_dolar("DOLARES", cuenta)]
+        
+        #Obtengo la cantidad de dolares
+        cantidadPesos = self.calcular_monto_total(dolar,monto)
+
+        #Chequeo que el tipo de moneda sea valido
         if tipoMoneda == "DOLAR":
             print("DEBE USAR UNA CUENTA EN PESOS")
-        else:
-            cantidadPesos = dolar * monto
+        elif cuentaPesos.puedeRetirar(cantidadPesos):
+            #Hago el ingreso y egreso de plata en ambos lados
             cuentaPesos.retirar_plata(cantidadPesos)
             cuentaDolar.ingresar_plata(monto)
             print("BIEN AHI TENES DOLARES!!")
-            compraDolar = Transaccion("COMPRA_DOLAR",None,None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
-            self.Transaccion.append(compraDolar)
+            compraDolar.setEstado("APROBADA")
+        else:
+            print("MONTO INSUFICIENTE")
+        
+        self.Transaccion.append(compraDolar)
     
+    #Metodo para realizar la venta de dolares de una cuenta a otrra
     def venta_dolar(self, tipoMoneda, monto, cuenta):
         dolar = 970
+        #Genero la transaccion
+        ventaDolar = Transaccion("VENTA_DOLAR",None,None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+        ventaDolar.setEstado("RECHAZADA")
+
+        #Obtengo las cuentas en pesos y dolares para hacer el cambio
         cuentaPesos = self.cuentas[self.cuenta_dolar(tipoMoneda, cuenta)]
-        cuentaDolar = self.cuentas[self.cuenta_dolar("DOLAR", cuenta)]
+        cuentaDolar = self.cuentas[self.cuenta_dolar("DOLARES", cuenta)]
+
+        #Obtengo la cantidad de dolares
+        cantidadPesos = self.calcular_monto_total(dolar,monto)
+        
+
+        #Chequeo que el tipo de moneda sea valido
         if tipoMoneda == "PESOS":
             print("DEBE USAR UNA CUENTA EN DOLARES")
-        else:
-            cantidadPesos = monto * dolar
+        elif cuentaDolar.puedeRetirar(cantidadPesos):
+
+            #Hago el ingreso y egreso de plata en ambos lados
             cuentaDolar.retirar_plata(monto)
             cuentaPesos.ingresar_plata(cantidadPesos)
             print("MAL AHI TENES PESOS!!")
-            ventaDolar = Transaccion("VENTA_DOLAR",None,None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
-            self.Transaccion.append(ventaDolar)
+            ventaDolar.setEstado("APROBADA")
+        
+        self.Transaccion.append(ventaDolar)
 
+    #Metodo para obtener la posicion de una cuenta espeficia segun el tipo de moneda que utiliza y la clase de cuenta(Caja de ahorro o cuenta corriente)
     def cuenta_dolar(self, moneda, cuenta):
         encontrado = False
         i = 0
+        #Hasta que no alla encontrado la cuenta y no supere la cantidad de cuentas que tengo
         while not(encontrado) and i<len(self.cuentas):
             cuentaTipo =  self.cuentas[i].getTipoCuenta()
             cuentaMoneda = self.cuentas[i].getTipoMoneda()
+            #Comparo si se cumple la condicion, si es asi corto el bucle
             if cuentaTipo == cuenta and cuentaMoneda == moneda:
                 encontrado = True
             else:
                 i += 1
         return i
     
-    def transferencia_enviada(self, cuentaDestino, cuentaOrigen, monto, tipoMoneda):
+    #Metodo para realizar transferencias entre dos cuentas
+    def transferencia(self, cuentaDestino, cuentaOrigen, monto, tipoMoneda, tipoTransferencia):
+        #Obtengo la cuenta a transferrir y el monto asociado con la comision
         cuentaTransferencia = self.cuentas[self.cuenta_dolar(tipoMoneda, cuentaOrigen)]
         saldoTransferComision = monto * self.comision_transferencia_saliente + monto
+
+        #Genero la transaccion
+        transferenciaEnviada = Transaccion("TRANSFERENCIA_" + tipoTransferencia + "_" + tipoMoneda ,self.cuenta_dolar(tipoMoneda, cuentaOrigen),None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+        #Si la cuenta tiene saldo, realizo la transferencia
         if cuentaTransferencia.get_saldo() >= saldoTransferComision:
+
+            #Retiro la plata de una, aplicando la comision
             cuentaTransferencia.retirar_plata(saldoTransferComision)
-            cuentaDestino.ingresar_plata(saldoTransferComision)
-            transferenciaEnviada = Transaccion("TRANSFERENCIA_ENVIADA_" + tipoMoneda ,self.cuenta_dolar(tipoMoneda, cuentaOrigen),None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
-            self.Transaccion.append(transferenciaEnviada)
+            cuentaTransferencia.retirar_plata(self.descontar_comision(monto,self.comision_transferencia_saliente))
+            
+            #Agrego la plata en la otra
+            cuentaDestino.ingresar_plata(self.descontar_comision(monto,self.comision_transferencia_entrante))
+
+            transferenciaEnviada.setEstado("APROBADA")
+            
             print("TRANSFERENCIA EXITOSA")
         else:
+            #Rechazo la transaccion porque no hay fondos
             print("NO HAY FONDOS SUFICIENTES")
-        
-    def transferencia_recibida(self, cuentaOrigen, monto, tipoMoneda):
-        cuentaTransferenciaRecibida = self.cuentas[self.cuenta_dolar(tipoMoneda, cuentaOrigen)]
-        saldoTransferComision = monto * self.comision_transferencia_entrante + monto
-        cuentaTransferenciaRecibida.ingresar_plata(saldoTransferComision)
-        transferenciaRecibida = Transaccion("TRANSFERENCIA_RECIBIDA_" + tipoMoneda ,self.cuenta_dolar(tipoMoneda, cuentaOrigen),None,monto,datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
-        self.Transaccion.append(transferenciaRecibida)
-        print("TRANSFERENCIA EXITOSA")
+            transferenciaEnviada.setEstado("RECHAZADA")
+
+        self.Transaccion.append(transferenciaEnviada)
 
 
-# Funciones solicitadas
+    # Funciones solicitadas
 
-    def calcular_monto_total(precio_dolar, monto):
+    def calcular_monto_total(self,precio_dolar, monto):
         impuesto_pais = 0.25 #Actual argentina
         ganancias = 0.35
         monto_sin_impuestos = precio_dolar * monto
@@ -286,15 +324,14 @@ class Cliente():
         monto_total = monto_sin_impuestos + impuesto_total
         return monto_total
 
-    def descontar_comision(monto, comision_porcentaje):
+    def descontar_comision(self, monto, comision_porcentaje):
         comision = (comision_porcentaje / 100) * monto
         monto_descontado = monto - comision
         return monto_descontado
 
-    def calcular_monto_plazo_fijo(monto_plazo_fijo, interes):
-        monto_final = monto_plazo_fijo + (monto_plazo_fijo * interes)
+    def calcular_monto_plazo_fijo(self, cuentaInversion, interes):
+        monto_final = cuentaInversion.getPlazoFijo() + (cuentaInversion.getPlazoFijo() * interes)
         return monto_final
-
 
     # ------------ GETTERS -----------------
 
@@ -406,11 +443,14 @@ nicolasGaston.compraTarjeta("En_cuotas","Credito",190,750000)
 
 #Test cuenta
 #nicolasGaston.agregarCuenta("CUENTA_CTE","PESOS")
-paco.agregarCuenta("CUENTA_CTE","PESOS")
-paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
-paco.agregarCuenta("CUENTA_CTE","PESOS")
-paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
-paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
+#paco.agregarCuenta("CUENTA_CTE","PESOS")
+#paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
+#paco.agregarCuenta("CUENTA_CTE","PESOS")
+#paco.agregarCuenta("CAJA_DE_AHORRO","DOLARES")
+#paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
+
+#Test compra dolar
+#paco.compra_dolar("PESOS",500,"CAJA_DE_AHORRO")
 
 #Generar reporte
 print(nicolasGaston.generar_reporte())

@@ -4,7 +4,8 @@ class Cuenta:
     def __init__(self, tipo_cuenta, tipo_moneda):
         self.tipo_cuenta = tipo_cuenta
         self.tipo_moneda = tipo_moneda
-        self.saldo = 0
+        self.saldo = 10000 #Default
+        self.esInversion()
 
     def getTipoCuenta(self):
         return self.tipo_cuenta
@@ -18,6 +19,9 @@ class Cuenta:
         else:
             print("MONTO INSUFICIENTE")
 
+    def puedeRetirar(self, monto):
+        return self.saldo >= monto
+
     def ingresar_plata(self,monto):
         self.saldo += monto
         return self.saldo
@@ -25,6 +29,13 @@ class Cuenta:
     def get_saldo(self):
         return self.saldo
     
+    def get_plazo_fijo(self):
+        return self.plazo_fijo
+    
+    def esInversion(self):
+        if self.tipo_cuenta == "INVERSION":
+            self.plazo_fijo = 5000 #Default para test
+            
 """
 class tipoCuentas(Enum):
     Caja_ahorro_pesos = "Caja de ahorro en peso"

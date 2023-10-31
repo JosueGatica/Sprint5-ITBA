@@ -345,5 +345,5 @@ paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
 paco.agregarCuenta("CAJA_DE_AHORRO","PESOS")
 
 #Generar reporte
-#print(nicolasGaston.generar_reporte())
-print(paco.generar_reporte())
+print(nicolasGaston.generar_reporte())
+#print(paco.generar_reporte())
